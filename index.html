@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="theme-color" content="#0a0f1e"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>CardSnap — Business Card Scanner</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #060b18;
+  --surface: #0d1526;
+  --surface2: #131d35;
+  --border: #1e2d4d;
+  --accent: #3d7eff;
+  --accent2: #00e5a0;
+  --accent3: #ff6b3d;
+  --text: #e8edf8;
+  --text2: #8a9ab8;
+  --text3: #4a5c7a;
+  --success: #00c97a;
+  --warning: #ffb830;
+  --error: #ff4d6a;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 40px rgba(61,126,255,0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(61,126,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 80%, rgba(0,229,160,0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== LAYOUT ===== */
+#app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
+
+/* ===== HEADER ===== */
+.app-header {
+  padding: 16px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  background: rgba(6,11,24,0.8);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.app-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.5px; }
+.app-logo span { color: var(--accent); }
+.header-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: 38px; height: 38px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2);
+  transition: all 0.2s;
+  position: relative;
+}
+.icon-btn:active { transform: scale(0.93); }
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.badge {
+  position: absolute; top: -4px; right: -4px;
+  background: var(--accent3); color: white;
+  font-size: 10px; font-weight: 700;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--bg);
+}
+
+/* ===== NAV TABS ===== */
+.nav-tabs {
+  display: flex;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 65px;
+  z-index: 99;
+}
+.nav-tab {
+  flex: 1;
+  padding: 10px 4px;
+  text-align: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.nav-tab svg { opacity: 0.5; transition: opacity 0.2s; }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-tab.active svg { opacity: 1; }
+
+/* ===== SCREENS ===== */
+.screen { flex: 1; display: none; flex-direction: column; overflow-y: auto; padding-bottom: 20px; }
+.screen.active { display: flex; }
+
+/* ===== SCREEN 1: SCAN ===== */
+.scan-hero {
+  padding: 24px 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.scan-card-zone {
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 1.75;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: var(--surface);
+  position: relative;
+  overflow: hidden;
+}
+.scan-card-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(61,126,255,0.04), transparent 60%);
+}
+.scan-card-zone:hover { border-color: var(--accent); background: var(--surface2); }
+.scan-card-zone.drag-over { border-color: var(--accent2); background: rgba(0,229,160,0.05); }
+.scan-card-zone img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: calc(var(--radius) - 2px);
+}
+.scan-icon-wrap {
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, var(--accent), #6b5bff);
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px rgba(61,126,255,0.4);
+}
+.scan-zone-text { text-align: center; }
+.scan-zone-text h3 { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.scan-zone-text p { font-size: 12px; color: var(--text2); }
+
+.scan-actions { display: flex; gap: 10px; width: 100%; max-width: 380px; }
+.btn-primary {
+  flex: 1; padding: 14px 20px;
+  background: linear-gradient(135deg, var(--accent), #6b5bff);
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(61,126,255,0.3);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary:active { transform: scale(0.97); }
+.btn-secondary {
+  padding: 14px 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.scan-tips {
+  width: 100%; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.scan-tips h4 { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.tip-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: var(--text2); }
+.tip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+
+/* Processing overlay */
+.processing-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(6,11,24,0.9);
+  z-index: 1000;
+  align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+  backdrop-filter: blur(10px);
+}
+.processing-overlay.show { display: flex; }
+.spinner {
+  width: 56px; height: 56px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.processing-overlay p { font-family: 'Syne', sans-serif; font-weight: 600; color: var(--text2); }
+.processing-steps { display: flex; flex-direction: column; gap: 8px; }
+.proc-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text3);
+  transition: color 0.3s;
+}
+.proc-step.active { color: var(--accent); }
+.proc-step.done { color: var(--success); }
+.proc-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3); flex-shrink: 0;
+  transition: background 0.3s;
+}
+.proc-step.active .proc-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.proc-step.done .proc-dot { background: var(--success); }
+
+/* ===== SCREEN 2: REVIEW ===== */
+.review-header { padding: 20px 20px 0; }
+.review-header h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+.review-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+.card-preview-strip {
+  margin: 16px 20px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  max-height: 160px;
+  position: relative;
+}
+.card-preview-strip img { width: 100%; object-fit: cover; display: block; }
+.card-preview-strip .no-img {
+  height: 120px;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3); font-size: 13px;
+}
+.confidence-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 6px 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  font-size: 11px; color: var(--text2);
+  display: flex; align-items: center; gap: 6px;
+}
+.conf-dots { display: flex; gap: 3px; }
+.conf-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.conf-dot.filled { background: var(--accent2); }
+
+.form-section { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label {
+  font-size: 11px; font-weight: 600; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  font-family: 'Syne', sans-serif;
+}
+.form-input {
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  transition: border-color 0.2s;
+  outline: none;
+  width: 100%;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input.warn { border-color: var(--warning); }
+.form-input.error { border-color: var(--error); }
+.field-hint { font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.field-hint.warn { color: var(--warning); }
+.field-hint.error { color: var(--error); }
+.field-hint.ok { color: var(--success); }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.event-tag-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.event-tag {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px; color: var(--text2);
+  cursor: pointer; transition: all 0.2s;
+  background: var(--surface);
+}
+.event-tag.selected { border-color: var(--accent); color: var(--accent); background: rgba(61,126,255,0.1); }
+
+.review-actions { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+.btn-save {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg, var(--accent2), #00b37a);
+  border: none; border-radius: var(--radius-sm);
+  color: #060b18; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(0,229,160,0.25);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-save:active { transform: scale(0.98); }
+.btn-discard {
+  width: 100%; padding: 12px;
+  background: transparent; border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text3); font-family: 'DM Sans', sans-serif; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-discard:hover { border-color: var(--error); color: var(--error); }
+
+/* ===== SCREEN 3: CONTACTS ===== */
+.contacts-header { padding: 20px 20px 12px; }
+.contacts-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.contacts-title-row h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+.count-chip {
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px; font-weight: 600; color: var(--text2);
+}
+.search-box {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: border-color 0.2s;
+}
+.search-box:focus-within { border-color: var(--accent); }
+.search-box input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+}
+.search-box input::placeholder { color: var(--text3); }
+
+.filter-row {
+  display: flex; gap: 8px; overflow-x: auto; padding: 12px 20px;
+  scrollbar-width: none;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-chip {
+  padding: 6px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+  color: var(--text2); cursor: pointer; white-space: nowrap;
+  transition: all 0.2s;
+}
+.filter-chip.active { background: rgba(61,126,255,0.12); border-color: var(--accent); color: var(--accent); }
+
+.contacts-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+
+.contact-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.contact-card::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.contact-card:hover { border-color: var(--border); background: var(--surface2); }
+.contact-card:hover::before { opacity: 1; }
+
+.contact-avatar {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px;
+  flex-shrink: 0;
+}
+.contact-info { flex: 1; min-width: 0; }
+.contact-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contact-company { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contact-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.contact-status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.status-pill {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px; font-weight: 700; font-family: 'Syne', sans-serif;
+}
+.status-pill.sent { background: rgba(0,201,122,0.12); color: var(--success); }
+.status-pill.queued { background: rgba(255,184,48,0.12); color: var(--warning); }
+.status-pill.failed { background: rgba(255,77,106,0.12); color: var(--error); }
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.queued-anim { animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 60px 20px; color: var(--text3); text-align: center;
+}
+.empty-state svg { opacity: 0.3; }
+.empty-state h3 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--text2); }
+.empty-state p { font-size: 13px; }
+
+/* ===== CONFIG / SETTINGS ===== */
+.config-overlay {
+  display: none; position: fixed; inset: 0;
+  z-index: 500; background: rgba(6,11,24,0.95);
+  backdrop-filter: blur(10px);
+  overflow-y: auto;
+  padding-bottom: 40px;
+}
+.config-overlay.show { display: block; }
+.config-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: rgba(6,11,24,0.95);
+}
+.config-header h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; }
+.config-close {
+  width: 36px; height: 36px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2);
+}
+.config-section { padding: 20px; border-bottom: 1px solid var(--border); }
+.config-section-title {
+  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+  color: var(--text3); text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+.config-field { margin-bottom: 12px; }
+.config-label { font-size: 12px; color: var(--text2); margin-bottom: 5px; }
+.config-input {
+  width: 100%; background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+}
+.config-input:focus { border-color: var(--accent); }
+textarea.config-input { min-height: 80px; resize: vertical; }
+.config-save {
+  width: 100%; margin-top: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--accent), #6b5bff);
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+}
+.config-note { font-size: 11px; color: var(--text3); margin-top: 6px; line-height: 1.5; }
+
+/* ===== CONTACT DETAIL MODAL ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  z-index: 600; background: rgba(6,11,24,0.95);
+  backdrop-filter: blur(10px);
+  overflow-y: auto; padding-bottom: 40px;
+}
+.modal-overlay.show { display: block; }
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-back {
+  width: 36px; height: 36px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2);
+}
+.modal-content { padding: 20px; }
+.modal-avatar {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px;
+  margin-bottom: 14px;
+}
+.modal-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; }
+.modal-company { font-size: 14px; color: var(--text2); margin-top: 2px; }
+.modal-actions { display: flex; gap: 10px; margin: 20px 0; }
+.modal-action-btn {
+  flex: 1; padding: 12px 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.modal-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.detail-rows { display: flex; flex-direction: column; gap: 2px; }
+.detail-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-icon { color: var(--text3); margin-top: 1px; flex-shrink: 0; }
+.detail-value { flex: 1; }
+.detail-label { font-size: 11px; color: var(--text3); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+.detail-text { font-size: 14px; }
+
+.message-status-panel {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-top: 20px;
+}
+.msg-status-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+.msg-status-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.msg-status-row:last-child { border-bottom: none; }
+.msg-label { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.resend-btn {
+  padding: 4px 12px;
+  background: rgba(61,126,255,0.12); border: 1px solid rgba(61,126,255,0.3);
+  border-radius: 6px; color: var(--accent); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+
+/* ===== TOAST ===== */
+.toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 900; display: flex; flex-direction: column; gap: 8px; pointer-events: none; width: min(380px, 90vw); }
+.toast {
+  padding: 12px 16px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: var(--shadow);
+  animation: toastIn 0.3s ease;
+  pointer-events: auto;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.toast.success { border-left: 3px solid var(--success); }
+.toast.warning { border-left: 3px solid var(--warning); }
+.toast.error { border-left: 3px solid var(--error); }
+.toast.info { border-left: 3px solid var(--accent); }
+
+/* ===== ONLINE/OFFLINE BANNER ===== */
+.connectivity-banner {
+  display: none;
+  background: var(--warning);
+  color: #060b18;
+  padding: 8px 16px;
+  font-size: 12px; font-weight: 700;
+  text-align: center;
+  font-family: 'Syne', sans-serif;
+  letter-spacing: 0.3px;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.connectivity-banner.show { display: flex; }
+.connectivity-banner.online { background: var(--success); }
+
+/* ===== STATS ROW ===== */
+.stats-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; padding: 16px 20px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+.stat-num { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--accent); }
+.stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+/* ===== ANIMATIONS ===== */
+.fade-in { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ===== FILE INPUT ===== */
+#fileInput, #cameraInput { display: none; }
+
+/* Duplicate warning */
+.dup-banner {
+  margin: 0 20px;
+  padding: 12px 14px;
+  background: rgba(255,184,48,0.1);
+  border: 1px solid rgba(255,184,48,0.3);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--warning);
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.dup-banner.hidden { display: none; }
+
+/* CRM sync badge */
+.crm-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px;
+  background: rgba(0,229,160,0.1);
+  border: 1px solid rgba(0,229,160,0.2);
+  border-radius: 6px; font-size: 10px; font-weight: 700; color: var(--accent2);
+  font-family: 'Syne', sans-serif;
+}
+
+/* Queue counter widget */
+.queue-widget {
+  margin: 12px 20px;
+  background: rgba(255,184,48,0.08);
+  border: 1px solid rgba(255,184,48,0.25);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px;
+}
+.queue-widget.hidden { display: none; }
+.queue-widget-icon { color: var(--warning); }
+.queue-widget-text { flex: 1; color: var(--text2); }
+.queue-widget-num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; color: var(--warning); }
+</style>
+</head>
+<body>
+
+<!-- Connectivity Banner -->
+<div class="connectivity-banner" id="connectivityBanner">
+  <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+  <span id="bannerText">Offline — messages will queue automatically</span>
+</div>
+
+<div id="app">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="app-logo">Card<span>Snap</span></div>
+    <div class="header-actions">
+      <div class="icon-btn" id="queueBtn" title="Offline Queue">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        <span class="badge hidden" id="queueBadge">0</span>
+      </div>
+      <div class="icon-btn" id="configBtn" title="Settings">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- Nav Tabs -->
+  <nav class="nav-tabs">
+    <div class="nav-tab active" data-screen="scan">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><path d="M3 17h3v3H3zM6 14H3v3"/></svg>
+      Scan
+    </div>
+    <div class="nav-tab" data-screen="review" id="reviewTab">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Review
+    </div>
+    <div class="nav-tab" data-screen="contacts">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Contacts
+    </div>
+  </nav>
+
+  <!-- ===== SCREEN 1: SCAN ===== -->
+  <section class="screen active" id="screen-scan">
+    <div class="scan-hero">
+      <div class="scan-card-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div id="cardPreviewInZone">
+          <div class="scan-icon-wrap">
+            <svg width="28" height="28" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8L6 7h12zM12 12v4M10 14h4"/></svg>
+          </div>
+          <div class="scan-zone-text">
+            <h3>Drop card here</h3>
+            <p>or tap to upload / take photo</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="scan-actions">
+        <button class="btn-primary" onclick="document.getElementById('cameraInput').click()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Camera
+        </button>
+        <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Upload
+        </button>
+      </div>
+
+      <div class="scan-tips">
+        <h4>Tips for best results</h4>
+        <div class="tip-item"><div class="tip-dot"></div>Lay card flat on a dark surface</div>
+        <div class="tip-item"><div class="tip-dot"></div>Ensure text is clearly visible & not blurry</div>
+        <div class="tip-item"><div class="tip-dot"></div>Include all four edges of the card</div>
+        <div class="tip-item"><div class="tip-dot"></div>Avoid glare from lights</div>
+      </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*"/>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment"/>
+  </section>
+
+  <!-- ===== SCREEN 2: REVIEW ===== -->
+  <section class="screen" id="screen-review">
+    <div class="review-header">
+      <h2>Review Details</h2>
+      <p>Check the extracted info and fix any errors before saving</p>
+    </div>
+
+    <div class="card-preview-strip" id="cardPreviewStrip">
+      <div class="no-img" id="noImgPlaceholder">No image loaded</div>
+      <img id="cardImg" style="display:none" alt="Business card"/>
+      <div class="confidence-bar" id="confBar" style="display:none">
+        <span style="font-size:10px;color:var(--text2)">OCR Confidence:</span>
+        <div class="conf-dots" id="confDots"></div>
+        <span id="confPct" style="color:var(--accent2);font-weight:700"></span>
+      </div>
+    </div>
+
+    <div class="dup-banner hidden" id="dupBanner">
+      <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      <span id="dupMessage">Duplicate contact detected!</span>
+    </div>
+
+    <div class="form-section">
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" class="form-input" id="f_name" placeholder="e.g. Arjun Sharma"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Job Title</label>
+          <input type="text" class="form-input" id="f_title" placeholder="e.g. Sales Manager"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Company *</label>
+          <input type="text" class="form-input" id="f_company" placeholder="e.g. Acme Corp"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone *</label>
+        <input type="tel" class="form-input" id="f_phone" placeholder="+91 98765 43210"/>
+        <div class="field-hint hidden" id="phoneHint"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="f_email" placeholder="arjun@company.com"/>
+        <div class="field-hint hidden" id="emailHint"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Website</label>
+        <input type="url" class="form-input" id="f_website" placeholder="https://company.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Event / Source</label>
+        <input type="text" class="form-input" id="f_event" placeholder="e.g. Tech Expo 2025"/>
+        <div class="event-tag-row" id="eventTags"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input type="text" class="form-input" id="f_notes" placeholder="Any notes about this contact..."/>
+      </div>
+    </div>
+
+    <div class="review-actions">
+      <button class="btn-save" id="saveBtn" onclick="saveContact()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save & Send Messages
+      </button>
+      <button class="btn-discard" onclick="discardReview()">Discard & Scan Again</button>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN 3: CONTACTS ===== -->
+  <section class="screen" id="screen-contacts">
+    <div class="contacts-header">
+      <div class="contacts-title-row">
+        <h2>Contacts</h2>
+        <span class="count-chip" id="contactsCount">0 saved</span>
+      </div>
+      <div class="search-box">
+        <svg width="16" height="16" fill="none" stroke="var(--text3)" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="Search name, company, phone…" oninput="renderContacts()"/>
+      </div>
+    </div>
+
+    <div class="filter-row" id="filterRow">
+      <div class="filter-chip active" data-filter="all">All</div>
+      <div class="filter-chip" data-filter="queued">Pending Send</div>
+      <div class="filter-chip" data-filter="sent">Sent</div>
+      <div class="filter-chip" data-filter="today">Today</div>
+    </div>
+
+    <div class="queue-widget hidden" id="queueWidget">
+      <div class="queue-widget-icon">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+      </div>
+      <div class="queue-widget-text">Messages waiting to send</div>
+      <div class="queue-widget-num" id="queueWidgetNum">0</div>
+    </div>
+
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-num" id="statTotal">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent2)" id="statSent">0</div>
+        <div class="stat-label">Messages Sent</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--warning)" id="statQueued">0</div>
+        <div class="stat-label">Queued</div>
+      </div>
+    </div>
+
+    <div class="contacts-list" id="contactsList"></div>
+  </section>
+</div>
+
+<!-- ===== PROCESSING OVERLAY ===== -->
+<div class="processing-overlay" id="processingOverlay">
+  <div class="spinner"></div>
+  <p>Scanning business card…</p>
+  <div class="processing-steps">
+    <div class="proc-step" id="ps1"><div class="proc-dot"></div>Uploading image</div>
+    <div class="proc-step" id="ps2"><div class="proc-dot"></div>Running OCR extraction</div>
+    <div class="proc-step" id="ps3"><div class="proc-dot"></div>Parsing contact fields</div>
+    <div class="proc-step" id="ps4"><div class="proc-dot"></div>Checking for duplicates</div>
+  </div>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== CONFIG OVERLAY ===== -->
+<div class="config-overlay" id="configOverlay">
+  <div class="config-header">
+    <h2>Configuration</h2>
+    <div class="config-close" onclick="toggleConfig(false)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-section-title">Claude AI (OCR)</div>
+    <div class="config-field">
+      <div class="config-label">Anthropic API Key</div>
+      <input type="password" class="config-input" id="cfg_claude_key" placeholder="sk-ant-..."/>
+      <div class="config-note">Used to extract text from business card photos via Claude Vision. Get yours at console.anthropic.com</div>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-section-title">Zoho CRM</div>
+    <div class="config-field">
+      <div class="config-label">Zoho OAuth Access Token</div>
+      <input type="password" class="config-input" id="cfg_zoho_token" placeholder="1000.xxxxx"/>
+    </div>
+    <div class="config-field">
+      <div class="config-label">Zoho Organization ID (optional)</div>
+      <input type="text" class="config-input" id="cfg_zoho_org" placeholder="e.g. 20XXXXXX"/>
+    </div>
+    <div class="config-note">Token must have ZohoCRM.modules.Leads.CREATE scope. See zoho.com/crm/developer/docs</div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-section-title">WhatsApp Business (via WhatsApp Cloud API)</div>
+    <div class="config-field">
+      <div class="config-label">Access Token</div>
+      <input type="password" class="config-input" id="cfg_wa_token" placeholder="EAAxxxxx..."/>
+    </div>
+    <div class="config-field">
+      <div class="config-label">Phone Number ID</div>
+      <input type="text" class="config-input" id="cfg_wa_phone_id" placeholder="1234567890"/>
+    </div>
+    <div class="config-field">
+      <div class="config-label">Template Name</div>
+      <input type="text" class="config-input" id="cfg_wa_template" placeholder="e.g. nice_meeting_you"/>
+      <div class="config-note">Must be an approved WhatsApp Business template. Parameters: name, event</div>
+    </div>
+    <div class="config-field">
+      <div class="config-label">Template Language Code</div>
+      <input type="text" class="config-input" id="cfg_wa_lang" placeholder="en_US"/>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-section-title">Email (via EmailJS or SMTP)</div>
+    <div class="config-field">
+      <div class="config-label">EmailJS Service ID</div>
+      <input type="text" class="config-input" id="cfg_ejs_service" placeholder="service_xxxxx"/>
+    </div>
+    <div class="config-field">
+      <div class="config-label">EmailJS Template ID</div>
+      <input type="text" class="config-input" id="cfg_ejs_template" placeholder="template_xxxxx"/>
+    </div>
+    <div class="config-field">
+      <div class="config-label">EmailJS Public Key</div>
+      <input type="text" class="config-input" id="cfg_ejs_pubkey" placeholder="your_public_key"/>
+    </div>
+    <div class="config-note">EmailJS sends email from the browser without a backend. Set up at emailjs.com (free tier available)</div>
+  </div>
+
+  <div class="config-section">
+    <div class="config-section-title">Event Tags (quick select in review)</div>
+    <div class="config-field">
+      <div class="config-label">Comma-separated event names</div>
+      <input type="text" class="config-input" id="cfg_events" placeholder="Tech Expo 2025, Startup Summit, Trade Fair"/>
+    </div>
+  </div>
+
+  <div style="padding: 20px;">
+    <button class="config-save" onclick="saveConfig()">Save Configuration</button>
+  </div>
+</div>
+
+<!-- ===== CONTACT DETAIL MODAL ===== -->
+<div class="modal-overlay" id="contactModal">
+  <div class="modal-header">
+    <div class="modal-back" onclick="closeModal()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </div>
+    <span class="crm-badge" id="modalCrmBadge" style="display:none">
+      <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+      Synced to CRM
+    </span>
+  </div>
+  <div class="modal-content" id="modalContent"></div>
+</div>
+
+<script>
+// =============================================
+// CARDSNAP — FULL APP LOGIC
+// =============================================
+
+// ---- State ----
+let contacts = [];
+let offlineQueue = [];
+let currentImageDataURL = null;
+let currentContact = null;
+let config = {};
+let activeFilter = 'all';
+let isOnline = navigator.onLine;
+
+// ---- Avatar colors ----
+const AVATAR_COLORS = [
+  ['#3d7eff','#1a3d7a'],['#00e5a0','#006b4a'],['#ff6b3d','#7a2d14'],
+  ['#a855f7','#4c1d95'],['#f59e0b','#78350f'],['#ec4899','#831843']
+];
+
+// =============================================
+// INIT
+// =============================================
+function init() {
+  loadFromStorage();
+  setupEventListeners();
+  checkConnectivity();
+  loadConfigUI();
+  renderContacts();
+  renderEventTags();
+  updateQueueBadge();
+
+  // Start background queue flush check
+  setInterval(tryFlushQueue, 30000);
+  setInterval(checkConnectivity, 5000);
+}
+
+function loadFromStorage() {
+  try {
+    contacts = JSON.parse(localStorage.getItem('cardsnap_contacts') || '[]');
+    offlineQueue = JSON.parse(localStorage.getItem('cardsnap_queue') || '[]');
+    config = JSON.parse(localStorage.getItem('cardsnap_config') || '{}');
+  } catch(e) { contacts = []; offlineQueue = []; config = {}; }
+}
+
+function saveToStorage() {
+  localStorage.setItem('cardsnap_contacts', JSON.stringify(contacts));
+  localStorage.setItem('cardsnap_queue', JSON.stringify(offlineQueue));
+}
+
+function saveConfig() {
+  config = {
+    claude_key: document.getElementById('cfg_claude_key').value.trim(),
+    zoho_token: document.getElementById('cfg_zoho_token').value.trim(),
+    zoho_org: document.getElementById('cfg_zoho_org').value.trim(),
+    wa_token: document.getElementById('cfg_wa_token').value.trim(),
+    wa_phone_id: document.getElementById('cfg_wa_phone_id').value.trim(),
+    wa_template: document.getElementById('cfg_wa_template').value.trim() || 'nice_meeting_you',
+    wa_lang: document.getElementById('cfg_wa_lang').value.trim() || 'en_US',
+    ejs_service: document.getElementById('cfg_ejs_service').value.trim(),
+    ejs_template: document.getElementById('cfg_ejs_template').value.trim(),
+    ejs_pubkey: document.getElementById('cfg_ejs_pubkey').value.trim(),
+    events: document.getElementById('cfg_events').value.trim(),
+  };
+  localStorage.setItem('cardsnap_config', JSON.stringify(config));
+  toggleConfig(false);
+  toast('Configuration saved', 'success');
+  renderEventTags();
+}
+
+function loadConfigUI() {
+  const fields = ['claude_key','zoho_token','zoho_org','wa_token','wa_phone_id','wa_template','wa_lang','ejs_service','ejs_template','ejs_pubkey','events'];
+  fields.forEach(f => {
+    const el = document.getElementById('cfg_' + f);
+    if (el && config[f]) el.value = config[f];
+  });
+}
+
+// =============================================
+// EVENT LISTENERS
+// =============================================
+function setupEventListeners() {
+  // Nav tabs
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchScreen(tab.dataset.screen));
+  });
+
+  // File inputs
+  document.getElementById('fileInput').addEventListener('change', handleFileInput);
+  document.getElementById('cameraInput').addEventListener('change', handleFileInput);
+
+  // Drag & drop
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) processImage(file);
+  });
+
+  // Filter chips
+  document.getElementById('filterRow').addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeFilter = chip.dataset.filter;
+    renderContacts();
+  });
+
+  // Config & queue buttons
+  document.getElementById('configBtn').addEventListener('click', () => toggleConfig(true));
+  document.getElementById('queueBtn').addEventListener('click', () => {
+    switchScreen('contacts');
+    activeFilter = 'queued';
+    document.querySelectorAll('.filter-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.filter === 'queued');
+    });
+    renderContacts();
+  });
+
+  // Phone/email validation on change
+  document.getElementById('f_phone').addEventListener('input', validatePhone);
+  document.getElementById('f_email').addEventListener('input', validateEmail);
+  document.getElementById('f_phone').addEventListener('blur', checkDuplicate);
+  document.getElementById('f_email').addEventListener('blur', checkDuplicate);
+
+  // Online/offline events
+  window.addEventListener('online', () => { isOnline = true; handleOnline(); });
+  window.addEventListener('offline', () => { isOnline = false; handleOffline(); });
+}
+
+// =============================================
+// SCREEN NAVIGATION
+// =============================================
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelector(`[data-screen="${name}"]`).classList.add('active');
+  if (name === 'contacts') { renderContacts(); updateStats(); }
+}
+
+// =============================================
+// IMAGE HANDLING
+// =============================================
+function handleFileInput(e) {
+  const file = e.target.files[0];
+  if (file) processImage(file);
+  e.target.value = '';
+}
+
+function processImage(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    currentImageDataURL = e.target.result;
+    // Update zone preview
+    const zone = document.getElementById('cardPreviewInZone');
+    zone.innerHTML = `<img src="${currentImageDataURL}" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" alt="Card"/>`;
+    startOCR(currentImageDataURL);
+  };
+  reader.readAsDataURL(file);
+}
+
+// =============================================
+// OCR via Claude Vision
+// =============================================
+async function startOCR(imageDataURL) {
+  showProcessing(true);
+  stepActive('ps1');
+
+  try {
+    await delay(300);
+    stepDone('ps1'); stepActive('ps2');
+
+    let extracted;
+    if (config.claude_key) {
+      extracted = await runClaudeOCR(imageDataURL);
+    } else {
+      extracted = await mockOCR();
+    }
+
+    stepDone('ps2'); stepActive('ps3');
+    await delay(400);
+    stepDone('ps3'); stepActive('ps4');
+    await delay(200);
+    stepDone('ps4');
+    await delay(300);
+
+    showProcessing(false);
+    populateReviewForm(extracted, imageDataURL);
+    switchScreen('review');
+
+  } catch(err) {
+    showProcessing(false);
+    toast('OCR failed: ' + err.message, 'error');
+    console.error(err);
+  }
+}
+
+async function runClaudeOCR(imageDataURL) {
+  const base64 = imageDataURL.split(',')[1];
+  const mediaType = imageDataURL.split(';')[0].split(':')[1];
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.claude_key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64 }
+          },
+          {
+            type: 'text',
+            text: `Extract contact information from this business card image. Return ONLY a valid JSON object with these exact keys (use empty string if not found):
+{
+  "name": "",
+  "title": "",
+  "company": "",
+  "phone": "",
+  "email": "",
+  "website": "",
+  "address": "",
+  "confidence": 0.95
+}
+Return nothing else — just the JSON object.`
+          }
+        ]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.error?.message || 'Claude API error');
+  }
+
+  const data = await response.json();
+  const text = data.content[0].text.trim();
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+async function mockOCR() {
+  await delay(1500);
+  return {
+    name: 'Priya Venkataraman',
+    title: 'Head of Business Development',
+    company: 'Infosys Technologies',
+    phone: '+91 98456 23781',
+    email: 'priya.v@infosys.com',
+    website: 'https://infosys.com',
+    address: 'Bangalore, Karnataka',
+    confidence: 0.91
+  };
+}
+
+// =============================================
+// REVIEW FORM
+// =============================================
+function populateReviewForm(data, imageDataURL) {
+  document.getElementById('f_name').value = data.name || '';
+  document.getElementById('f_title').value = data.title || '';
+  document.getElementById('f_company').value = data.company || '';
+  document.getElementById('f_phone').value = data.phone || '';
+  document.getElementById('f_email').value = data.email || '';
+  document.getElementById('f_website').value = data.website || '';
+  document.getElementById('f_notes').value = data.address || '';
+  document.getElementById('f_event').value = '';
+
+  // Card image
+  const img = document.getElementById('cardImg');
+  const noImg = document.getElementById('noImgPlaceholder');
+  if (imageDataURL) {
+    img.src = imageDataURL;
+    img.style.display = 'block';
+    noImg.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    noImg.style.display = 'flex';
+  }
+
+  // Confidence
+  const conf = data.confidence || 0.8;
+  const dots = document.getElementById('confDots');
+  const filled = Math.round(conf * 5);
+  dots.innerHTML = Array.from({length: 5}, (_, i) =>
+    `<div class="conf-dot ${i < filled ? 'filled' : ''}"></div>`
+  ).join('');
+  document.getElementById('confPct').textContent = Math.round(conf * 100) + '%';
+  document.getElementById('confBar').style.display = 'flex';
+
+  validatePhone(); validateEmail(); checkDuplicate();
+  document.getElementById('dupBanner').classList.add('hidden');
+}
+
+function validatePhone() {
+  const val = document.getElementById('f_phone').value.trim();
+  const hint = document.getElementById('phoneHint');
+  const input = document.getElementById('f_phone');
+  if (!val) { hint.classList.add('hidden'); input.className = 'form-input'; return; }
+  const clean = val.replace(/\D/g, '');
+  if (clean.length >= 7 && clean.length <= 15) {
+    hint.className = 'field-hint ok'; hint.textContent = '✓ Valid phone number'; hint.classList.remove('hidden');
+    input.className = 'form-input';
+  } else {
+    hint.className = 'field-hint warn'; hint.textContent = '⚠ Check phone number format'; hint.classList.remove('hidden');
+    input.className = 'form-input warn';
+  }
+}
+
+function validateEmail() {
+  const val = document.getElementById('f_email').value.trim();
+  const hint = document.getElementById('emailHint');
+  const input = document.getElementById('f_email');
+  if (!val) { hint.classList.add('hidden'); input.className = 'form-input'; return; }
+  const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailRx.test(val)) {
+    hint.className = 'field-hint ok'; hint.textContent = '✓ Valid email'; hint.classList.remove('hidden');
+    input.className = 'form-input';
+  } else {
+    hint.className = 'field-hint error'; hint.textContent = '✗ Invalid email format'; hint.classList.remove('hidden');
+    input.className = 'form-input error';
+  }
+}
+
+function checkDuplicate() {
+  const phone = document.getElementById('f_phone').value.trim();
+  const email = document.getElementById('f_email').value.trim().toLowerCase();
+  const banner = document.getElementById('dupBanner');
+  const msg = document.getElementById('dupMessage');
+
+  const dupByPhone = phone && contacts.find(c => normalizePhone(c.phone) === normalizePhone(phone));
+  const dupByEmail = email && contacts.find(c => c.email && c.email.toLowerCase() === email);
+
+  if (dupByPhone) {
+    msg.textContent = `⚠ Phone ${phone} already saved as "${dupByPhone.name}"`;
+    banner.classList.remove('hidden');
+  } else if (dupByEmail) {
+    msg.textContent = `⚠ Email already saved as "${dupByEmail.name}"`;
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function normalizePhone(p) {
+  return (p || '').replace(/\D/g,'').slice(-10);
+}
+
+function renderEventTags() {
+  const events = (config.events || 'Tech Expo 2025,Startup Summit,Trade Fair,Industry Meet').split(',').map(e => e.trim()).filter(Boolean);
+  const container = document.getElementById('eventTags');
+  container.innerHTML = events.map(ev =>
+    `<div class="event-tag" onclick="selectEventTag(this,'${ev.replace(/'/g,"\\\'")}')">${ev}</div>`
+  ).join('');
+}
+
+function selectEventTag(el, val) {
+  document.querySelectorAll('.event-tag').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('f_event').value = val;
+}
+
+// =============================================
+// SAVE CONTACT
+// =============================================
+async function saveContact() {
+  const name = document.getElementById('f_name').value.trim();
+  const phone = document.getElementById('f_phone').value.trim();
+  if (!name) { toast('Name is required', 'error'); return; }
+  if (!phone) { toast('Phone number is required', 'error'); return; }
+
+  const contact = {
+    id: 'c_' + Date.now(),
+    name,
+    title: document.getElementById('f_title').value.trim(),
+    company: document.getElementById('f_company').value.trim(),
+    phone,
+    email: document.getElementById('f_email').value.trim(),
+    website: document.getElementById('f_website').value.trim(),
+    event: document.getElementById('f_event').value.trim(),
+    notes: document.getElementById('f_notes').value.trim(),
+    imageDataURL: currentImageDataURL,
+    createdAt: new Date().toISOString(),
+    waStatus: 'pending',
+    emailStatus: 'pending',
+    crmSynced: false,
+    crmId: null
+  };
+
+  contacts.unshift(contact);
+  saveToStorage();
+  toast(`Saved ${name}`, 'success');
+
+  // CRM sync
+  syncToZohoCRM(contact);
+
+  // Messaging
+  await sendMessages(contact);
+
+  switchScreen('contacts');
+  renderContacts();
+  updateStats();
+  currentImageDataURL = null;
+}
+
+function discardReview() {
+  currentImageDataURL = null;
+  switchScreen('scan');
+}
+
+// =============================================
+// ZOHO CRM SYNC
+// =============================================
+async function syncToZohoCRM(contact) {
+  if (!config.zoho_token) {
+    contact.crmSynced = false;
+    saveToStorage();
+    return;
+  }
+
+  try {
+    const payload = {
+      data: [{
+        Last_Name: contact.name.split(' ').slice(-1)[0] || contact.name,
+        First_Name: contact.name.split(' ').slice(0,-1).join(' ') || '',
+        Title: contact.title,
+        Company: contact.company,
+        Phone: contact.phone,
+        Email: contact.email,
+        Website: contact.website,
+        Lead_Source: contact.event || 'Business Card',
+        Description: contact.notes
+      }]
+    };
+
+    const res = await fetch('https://www.zohoapis.com/crm/v2/Leads', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Zoho-oauthtoken ' + config.zoho_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const idx = contacts.findIndex(c => c.id === contact.id);
+      if (idx !== -1) {
+        contacts[idx].crmSynced = true;
+        contacts[idx].crmId = data.data?.[0]?.details?.id || null;
+        saveToStorage();
+        renderContacts();
+        toast('Synced to Zoho CRM', 'success');
+      }
+    } else {
+      const errData = await res.json();
+      console.warn('Zoho CRM error:', errData);
+      toast('CRM sync failed: ' + (errData.message || res.status), 'warning');
+    }
+  } catch(err) {
+    console.warn('Zoho CRM sync failed:', err.message);
+    toast('CRM sync failed (network)', 'warning');
+  }
+}
+
+// =============================================
+// MESSAGING
+// =============================================
+async function sendMessages(contact) {
+  if (!isOnline) {
+    queueMessages(contact);
+    toast('Offline — messages queued', 'warning');
+    return;
+  }
+
+  const waResult = await sendWhatsApp(contact);
+  const emailResult = await sendEmail(contact);
+
+  const idx = contacts.findIndex(c => c.id === contact.id);
+  if (idx !== -1) {
+    contacts[idx].waStatus = waResult ? 'sent' : 'failed';
+    contacts[idx].emailStatus = emailResult ? 'sent' : 'failed';
+    saveToStorage();
+    renderContacts();
+  }
+
+  if (waResult && emailResult) toast('WhatsApp & Email sent!', 'success');
+  else if (waResult) toast('WhatsApp sent. Email failed.', 'warning');
+  else if (emailResult) toast('Email sent. WhatsApp failed.', 'warning');
+  else {
+    // Both failed → queue
+    queueMessages(contact);
+    toast('Sending failed — messages queued', 'warning');
+  }
+}
+
+async function sendWhatsApp(contact) {
+  if (!config.wa_token || !config.wa_phone_id) {
+    console.log('[WA] No config — skipping. Would send to:', contact.phone);
+    return false;
+  }
+
+  const phone = contact.phone.replace(/\D/g,'');
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: phone,
+    type: 'template',
+    template: {
+      name: config.wa_template || 'nice_meeting_you',
+      language: { code: config.wa_lang || 'en_US' },
+      components: [{
+        type: 'body',
+        parameters: [
+          { type: 'text', text: contact.name },
+          { type: 'text', text: contact.event || 'the event' }
+        ]
+      }]
+    }
+  };
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v18.0/${config.wa_phone_id}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + config.wa_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch(e) {
+    console.warn('WhatsApp send error:', e.message);
+    return false;
+  }
+}
+
+async function sendEmail(contact) {
+  if (!config.ejs_service || !config.ejs_template || !config.ejs_pubkey || !contact.email) {
+    console.log('[Email] No config or no email — skipping. Would send to:', contact.email);
+    return false;
+  }
+
+  try {
+    // Load EmailJS dynamically
+    if (!window.emailjs) {
+      await loadScript('https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js');
+      emailjs.init(config.ejs_pubkey);
+    }
+
+    await emailjs.send(config.ejs_service, config.ejs_template, {
+      to_name: contact.name,
+      to_email: contact.email,
+      from_name: 'CardSnap',
+      contact_name: contact.name,
+      contact_company: contact.company,
+      contact_phone: contact.phone,
+      event_name: contact.event || 'the event',
+      reply_to: ''
+    });
+    return true;
+  } catch(e) {
+    console.warn('Email send error:', e.message || e);
+    return false;
+  }
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// =============================================
+// OFFLINE QUEUE
+// =============================================
+function queueMessages(contact) {
+  offlineQueue.push({ contactId: contact.id, queuedAt: new Date().toISOString() });
+  localStorage.setItem('cardsnap_queue', JSON.stringify(offlineQueue));
+
+  const idx = contacts.findIndex(c => c.id === contact.id);
+  if (idx !== -1) {
+    contacts[idx].waStatus = 'queued';
+    contacts[idx].emailStatus = 'queued';
+    saveToStorage();
+  }
+  updateQueueBadge();
+  renderContacts();
+}
+
+async function tryFlushQueue() {
+  if (!isOnline || offlineQueue.length === 0) return;
+
+  const toSend = [...offlineQueue];
+  let sent = 0;
+  offlineQueue = [];
+  localStorage.setItem('cardsnap_queue', JSON.stringify(offlineQueue));
+
+  for (const item of toSend) {
+    const contact = contacts.find(c => c.id === item.contactId);
+    if (!contact) continue;
+
+    const waOk = await sendWhatsApp(contact);
+    const emailOk = await sendEmail(contact);
+
+    const idx = contacts.findIndex(c => c.id === contact.id);
+    if (idx !== -1) {
+      contacts[idx].waStatus = waOk ? 'sent' : 'queued';
+      contacts[idx].emailStatus = emailOk ? 'sent' : 'queued';
+      if (!waOk || !emailOk) offlineQueue.push(item);
+      else sent++;
+    }
+  }
+
+  saveToStorage();
+  localStorage.setItem('cardsnap_queue', JSON.stringify(offlineQueue));
+  updateQueueBadge();
+  renderContacts();
+  updateStats();
+
+  if (sent > 0) toast(`Sent ${sent} queued message${sent > 1 ? 's' : ''}`, 'success');
+}
+
+function updateQueueBadge() {
+  const badge = document.getElementById('queueBadge');
+  const n = offlineQueue.length;
+  if (n > 0) {
+    badge.textContent = n;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+// =============================================
+// CONNECTIVITY
+// =============================================
+function checkConnectivity() {
+  const online = navigator.onLine;
+  if (online !== isOnline) {
+    isOnline = online;
+    if (online) handleOnline();
+    else handleOffline();
+  }
+  const banner = document.getElementById('connectivityBanner');
+  if (!online) {
+    banner.classList.add('show');
+    banner.classList.remove('online');
+    document.getElementById('bannerText').textContent = 'Offline — messages will queue automatically';
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+function handleOnline() {
+  isOnline = true;
+  const banner = document.getElementById('connectivityBanner');
+  banner.classList.add('show', 'online');
+  document.getElementById('bannerText').textContent = 'Back online — sending queued messages…';
+  setTimeout(() => banner.classList.remove('show'), 4000);
+
+  if (offlineQueue.length > 0) {
+    setTimeout(tryFlushQueue, 1000);
+  }
+}
+
+function handleOffline() {
+  isOnline = false;
+  const banner = document.getElementById('connectivityBanner');
+  banner.classList.add('show');
+  banner.classList.remove('online');
+  document.getElementById('bannerText').textContent = 'Offline — messages will queue automatically';
+}
+
+// =============================================
+// CONTACTS LIST
+// =============================================
+function renderContacts() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const today = new Date().toDateString();
+
+  let list = contacts.filter(c => {
+    const matchSearch = !search ||
+      c.name.toLowerCase().includes(search) ||
+      (c.company || '').toLowerCase().includes(search) ||
+      (c.phone || '').includes(search) ||
+      (c.email || '').toLowerCase().includes(search);
+
+    let matchFilter = true;
+    if (activeFilter === 'queued') matchFilter = c.waStatus === 'queued' || c.emailStatus === 'queued';
+    if (activeFilter === 'sent') matchFilter = c.waStatus === 'sent' && c.emailStatus === 'sent';
+    if (activeFilter === 'today') matchFilter = new Date(c.createdAt).toDateString() === today;
+
+    return matchSearch && matchFilter;
+  });
+
+  const container = document.getElementById('contactsList');
+  const countEl = document.getElementById('contactsCount');
+  countEl.textContent = contacts.length + ' saved';
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <h3>${contacts.length === 0 ? 'No contacts yet' : 'No matches found'}</h3>
+        <p>${contacts.length === 0 ? 'Scan your first business card to get started' : 'Try a different search or filter'}</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = list.map(c => buildContactCard(c)).join('');
+
+  // Queue widget
+  const queued = contacts.filter(c => c.waStatus === 'queued' || c.emailStatus === 'queued').length;
+  const qw = document.getElementById('queueWidget');
+  if (queued > 0) {
+    qw.classList.remove('hidden');
+    document.getElementById('queueWidgetNum').textContent = queued;
+  } else {
+    qw.classList.add('hidden');
+  }
+}
+
+function buildContactCard(c) {
+  const colors = AVATAR_COLORS[Math.abs(hashStr(c.name)) % AVATAR_COLORS.length];
+  const initials = c.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+  const waQueued = c.waStatus === 'queued';
+  const emailQueued = c.emailStatus === 'queued';
+  const anyQueued = waQueued || emailQueued;
+
+  const date = new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+  return `
+    <div class="contact-card fade-in" onclick="openContactModal('${c.id}')">
+      <div class="contact-avatar" style="background:linear-gradient(135deg,${colors[0]},${colors[1]})">${initials}</div>
+      <div class="contact-info">
+        <div class="contact-name">${escHtml(c.name)}</div>
+        <div class="contact-company">${escHtml(c.company || c.title || '—')}</div>
+        <div class="contact-meta">${escHtml(c.phone)} · ${date}</div>
+      </div>
+      <div class="contact-status">
+        ${anyQueued
+          ? `<div class="status-pill queued"><div class="status-dot queued-anim"></div>QUEUED</div>`
+          : `<div class="status-pill sent"><div class="status-dot"></div>SENT</div>`}
+        ${c.crmSynced ? '<span class="crm-badge" style="font-size:9px;padding:2px 6px">CRM</span>' : ''}
+      </div>
+    </div>`;
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = contacts.length;
+  document.getElementById('statSent').textContent = contacts.filter(c => c.waStatus === 'sent' && c.emailStatus === 'sent').length;
+  document.getElementById('statQueued').textContent = contacts.filter(c => c.waStatus === 'queued' || c.emailStatus === 'queued').length;
+}
+
+// =============================================
+// CONTACT DETAIL MODAL
+// =============================================
+function openContactModal(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+
+  const colors = AVATAR_COLORS[Math.abs(hashStr(c.name)) % AVATAR_COLORS.length];
+  const initials = c.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+  document.getElementById('modalCrmBadge').style.display = c.crmSynced ? 'inline-flex' : 'none';
+
+  const content = document.getElementById('modalContent');
+  content.innerHTML = `
+    <div class="modal-avatar" style="background:linear-gradient(135deg,${colors[0]},${colors[1]})">${initials}</div>
+    <div class="modal-name">${escHtml(c.name)}</div>
+    <div class="modal-company">${escHtml(c.title ? c.title + ' · ' + (c.company || '') : (c.company || ''))}</div>
+
+    <div class="modal-actions">
+      ${c.phone ? `<div class="modal-action-btn" onclick="window.open('tel:${c.phone}')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+        Call</div>` : ''}
+      ${c.phone ? `<div class="modal-action-btn" onclick="window.open('https://wa.me/${c.phone.replace(/\\D/g,'')}')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.029 18.88a9.78 9.78 0 01-4.988-1.362l-3.488.913.932-3.404A9.788 9.788 0 012.21 12C2.21 6.64 6.64 2.21 12 2.21S21.79 6.64 21.79 12 17.36 21.79 12.029 21.79z"/></svg>
+        WhatsApp</div>` : ''}
+      ${c.email ? `<div class="modal-action-btn" onclick="window.open('mailto:${c.email}')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email</div>` : ''}
+    </div>
+
+    <div class="detail-rows">
+      ${c.phone ? detailRow('📞','Phone',c.phone) : ''}
+      ${c.email ? detailRow('✉️','Email',c.email) : ''}
+      ${c.website ? detailRow('🌐','Website',c.website) : ''}
+      ${c.event ? detailRow('📅','Event / Source',c.event) : ''}
+      ${c.notes ? detailRow('📝','Notes',c.notes) : ''}
+      ${detailRow('🕐','Scanned On',new Date(c.createdAt).toLocaleString('en-IN'))}
+    </div>
+
+    <div class="message-status-panel">
+      <div class="msg-status-title">Message Status</div>
+      <div class="msg-status-row">
+        <div class="msg-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent2)"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.029 18.88a9.78 9.78 0 01-4.988-1.362l-3.488.913.932-3.404A9.788 9.788 0 012.21 12C2.21 6.64 6.64 2.21 12 2.21S21.79 6.64 21.79 12 17.36 21.79 12.029 21.79z"/></svg>
+          WhatsApp
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${statusBadge(c.waStatus)}
+          ${c.waStatus !== 'sent' ? `<div class="resend-btn" onclick="resendMessage('${c.id}','wa')">Resend</div>` : ''}
+        </div>
+      </div>
+      <div class="msg-status-row">
+        <div class="msg-label">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${statusBadge(c.emailStatus)}
+          ${c.emailStatus !== 'sent' ? `<div class="resend-btn" onclick="resendMessage('${c.id}','email')">Resend</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    ${c.imageDataURL ? `
+      <div style="margin-top:20px">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;font-family:'Syne',sans-serif;margin-bottom:8px">Original Card</div>
+        <img src="${c.imageDataURL}" style="width:100%;border-radius:12px;border:1px solid var(--border)" alt="Business card"/>
+      </div>` : ''}
+  `;
+
+  document.getElementById('contactModal').classList.add('show');
+}
+
+function detailRow(icon, label, value) {
+  return `<div class="detail-row">
+    <div class="detail-icon">${icon}</div>
+    <div class="detail-value">
+      <div class="detail-label">${label}</div>
+      <div class="detail-text">${escHtml(value)}</div>
+    </div>
+  </div>`;
+}
+
+function statusBadge(status) {
+  if (status === 'sent') return `<span class="status-pill sent"><span class="status-dot"></span>SENT</span>`;
+  if (status === 'queued') return `<span class="status-pill queued"><span class="status-dot queued-anim"></span>QUEUED</span>`;
+  return `<span class="status-pill failed"><span class="status-dot"></span>FAILED</span>`;
+}
+
+async function resendMessage(contactId, type) {
+  const c = contacts.find(x => x.id === contactId);
+  if (!c) return;
+
+  if (!isOnline) { toast('Still offline — will retry when connected', 'warning'); return; }
+
+  toast('Resending…', 'info');
+  let ok;
+  if (type === 'wa') ok = await sendWhatsApp(c);
+  else ok = await sendEmail(c);
+
+  const idx = contacts.findIndex(x => x.id === contactId);
+  if (idx !== -1) {
+    if (type === 'wa') contacts[idx].waStatus = ok ? 'sent' : 'failed';
+    else contacts[idx].emailStatus = ok ? 'sent' : 'failed';
+    saveToStorage();
+    renderContacts();
+    openContactModal(contactId);
+    toast(ok ? 'Message resent!' : 'Resend failed', ok ? 'success' : 'error');
+  }
+}
+
+function closeModal() {
+  document.getElementById('contactModal').classList.remove('show');
+}
+
+// =============================================
+// CONFIG OVERLAY
+// =============================================
+function toggleConfig(show) {
+  document.getElementById('configOverlay').classList.toggle('show', show);
+  if (show) loadConfigUI();
+}
+
+// =============================================
+// PROCESSING STEPS
+// =============================================
+function showProcessing(show) {
+  document.getElementById('processingOverlay').classList.toggle('show', show);
+  if (show) {
+    ['ps1','ps2','ps3','ps4'].forEach(id => {
+      const el = document.getElementById(id);
+      el.classList.remove('active','done');
+    });
+  }
+}
+
+function stepActive(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+function stepDone(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('active');
+  el.classList.add('done');
+}
+
+// =============================================
+// TOAST
+// =============================================
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const icons = { success:'✓', warning:'⚠', error:'✗', info:'ℹ' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]}</span><span>${escHtml(msg)}</span>`;
+  container.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+// =============================================
+// UTILS
+// =============================================
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+  return h;
+}
+
+// =============================================
+// START
+// =============================================
+init();
+</script>
+</body>
+</html>
